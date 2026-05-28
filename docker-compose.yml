@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: sturmnachweis-backend
+    restart: unless-stopped
+    environment:
+      - VISUAL_CROSSING_API_KEY=${VISUAL_CROSSING_API_KEY:-}
+      - KNMI_API_KEY=${KNMI_API_KEY:-}
+      - CACHE_DIR=/app/data/cache
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./data:/app/data
+    networks:
+      - sturmnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build: ./frontend
+    container_name: sturmnachweis-frontend
+    restart: unless-stopped
+    networks:
+      - sturmnet
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: sturmnachweis-nginx
+    restart: unless-stopped
+    ports:
+      - "${EXPOSE_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - sturmnet
+    depends_on:
+      - backend
+      - frontend
+
+networks:
+  sturmnet:
+    driver: bridge

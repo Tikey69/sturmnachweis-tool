@@ -1,0 +1,22 @@
+# Umgebungsvariablen (enthält API-Keys)
+.env
+
+# Cache-Daten
+data/cache/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+frontend/dist/
+
+# macOS
+.DS_Store
+
+# Docker
+*.log
