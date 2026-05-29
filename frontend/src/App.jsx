@@ -12,11 +12,17 @@ export default function App() {
   const [result, setResult] = useState(null)
   const [lastQuery, setLastQuery] = useState(null)
 
-  const handleSearch = async ({ plz, startDate, endDate, damageDate, sources }) => {
+  const handleSearch = async ({
+    plz, startDate, endDate, damageDate, sources,
+    insuredName, insuredAddress, policyNumber, claimNumber,
+  }) => {
     setLoading(true)
     setError(null)
     setResult(null)
-    setLastQuery({ plz, startDate, endDate, damageDate, sources })
+    setLastQuery({
+      plz, startDate, endDate, damageDate, sources,
+      insuredName, insuredAddress, policyNumber, claimNumber,
+    })
 
     try {
       const resp = await fetch('/api/query', {
@@ -56,6 +62,10 @@ export default function App() {
           start_date: lastQuery.startDate,
           end_date: lastQuery.endDate,
           sources: lastQuery.sources,
+          insured_name: lastQuery.insuredName || undefined,
+          insured_address: lastQuery.insuredAddress || undefined,
+          policy_number: lastQuery.policyNumber || undefined,
+          claim_number: lastQuery.claimNumber || undefined,
         }),
       })
       if (!resp.ok) throw new Error('PDF-Generierung fehlgeschlagen')
@@ -80,11 +90,14 @@ export default function App() {
       {/* Header */}
       <header className="bg-blue-900 text-white shadow-lg">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-6">
-          <img
-            src="/logo.svg"
-            alt="Firmenlogo"
-            className="h-20 w-auto object-contain"
-          />
+          {/* Logo mit weißem ovalem Hintergrund */}
+          <div className="bg-white rounded-[2rem] px-4 py-2 shadow-sm flex items-center justify-center">
+            <img
+              src="/logo.svg"
+              alt="Firmenlogo"
+              className="h-16 w-auto object-contain"
+            />
+          </div>
           <div className="text-right text-xs text-blue-300 shrink-0">
             <p className="text-white font-semibold text-sm mb-1">Sturmnachweis-Tool</p>
             <p>Quellen: DWD · Open-Meteo · KNMI</p>
@@ -127,6 +140,7 @@ export default function App() {
                   location={result.location}
                   lastStorm={result.last_storm}
                   damageDate={lastQuery?.damageDate}
+                  stormDays={result.storm_days}
                 />
               </div>
 

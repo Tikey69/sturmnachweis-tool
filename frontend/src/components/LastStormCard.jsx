@@ -1,12 +1,18 @@
 import { Cloud, AlertTriangle, CheckCircle } from 'lucide-react'
 import { beaufortLabel, beaufortColor } from '../utils/beaufort'
 
-export default function LastStormCard({ location, lastStorm, damageDate }) {
+export default function LastStormCard({ location, lastStorm, damageDate, stormDays = [] }) {
   const damageDateObj = damageDate ? new Date(damageDate) : null
 
   // Prüfen ob am Schadensdatum ein Sturm war
   const isDamageDay = lastStorm && damageDateObj &&
     Math.abs(new Date(lastStorm.date) - damageDateObj) <= 86400000 * 1
+
+  // Sturmtag am Schadensdatum für Mehrquellen-Info
+  const damageEvent = damageDateObj
+    ? stormDays.find(e => Math.abs(new Date(e.date) - damageDateObj) <= 86400000)
+    : null
+  const nSources = damageEvent?.confirming_sources?.length || 0
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -44,9 +50,22 @@ export default function LastStormCard({ location, lastStorm, damageDate }) {
               Schadensdatum: {damageDateObj.toLocaleDateString('de-DE')}
             </p>
             {isDamageDay ? (
-              <p className="text-sm text-green-700 mt-0.5">
-                ✔ Windböe ≥ Bft 8 nachgewiesen — Versicherungsvoraussetzung erfüllt
-              </p>
+              <div>
+                <p className="text-sm text-green-700 mt-0.5">
+                  ✔ Windböe ≥ Bft 8 nachgewiesen — Versicherungsvoraussetzung erfüllt
+                </p>
+                {nSources >= 2 && (
+                  <p className={`text-xs font-semibold mt-1.5 px-2 py-1 rounded inline-block
+                    ${nSources >= 3
+                      ? 'bg-green-200 text-green-900'
+                      : 'bg-amber-100 text-amber-900'}`}>
+                    {nSources >= 3 ? '✔✔✔' : '✔✔'} Mehrfachbestätigung: {nSources} unabhängige Quellen
+                    {damageEvent?.confirming_sources && (
+                      <span className="font-normal"> ({damageEvent.confirming_sources.join(' · ')})</span>
+                    )}
+                  </p>
+                )}
+              </div>
             ) : (
               <p className="text-sm text-amber-700 mt-0.5">
                 ⚠ Kein Sturm ≥ Bft 8 direkt am Schadensdatum — Zeitraum prüfen

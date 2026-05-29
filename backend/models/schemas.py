@@ -21,6 +21,7 @@ class StormEvent(BaseModel):
     station_name: Optional[str] = None
     distance_km: Optional[float] = None
     is_confirmed: bool = True  # False = nur Modelldaten
+    confirming_sources: List[str] = []  # alle Quellen, die diesen Tag bestätigten
 
 
 class QueryRequest(BaseModel):
@@ -62,6 +63,7 @@ class PdfReportRequest(BaseModel):
     end_date: Optional[date] = None    # Standard: damage_date + 1 Tag
     policy_number: Optional[str] = None
     insured_name: Optional[str] = None
+    insured_address: Optional[str] = None
     claim_number: Optional[str] = None
     sources: List[str] = Field(default=["open_meteo", "dwd", "visual_crossing", "knmi"])
 

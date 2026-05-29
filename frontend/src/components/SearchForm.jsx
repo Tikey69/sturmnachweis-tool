@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, Wind } from 'lucide-react'
+import { Search, Wind, User } from 'lucide-react'
 
 const today = new Date().toISOString().split('T')[0]
 const oneYearAgo = new Date(Date.now() - 365 * 86400000).toISOString().split('T')[0]
@@ -11,6 +11,12 @@ export default function SearchForm({ onSubmit, loading }) {
   const [damageDate, setDamageDate] = useState(today)
   const [sources, setSources] = useState(['open_meteo', 'dwd', 'visual_crossing', 'knmi'])
 
+  // Kundendaten für PDF
+  const [insuredName, setInsuredName] = useState('')
+  const [insuredAddress, setInsuredAddress] = useState('')
+  const [policyNumber, setPolicyNumber] = useState('')
+  const [claimNumber, setClaimNumber] = useState('')
+
   const toggleSource = (src) => {
     setSources(prev =>
       prev.includes(src) ? prev.filter(s => s !== src) : [...prev, src]
@@ -20,20 +26,24 @@ export default function SearchForm({ onSubmit, loading }) {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!plz || plz.length !== 5) return
-    onSubmit({ plz, startDate, endDate, damageDate, sources })
+    onSubmit({
+      plz, startDate, endDate, damageDate, sources,
+      insuredName, insuredAddress, policyNumber, claimNumber,
+    })
   }
 
   return (
     <form onSubmit={handleSubmit}
-      className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-5">
 
-      <div className="flex items-center gap-2 mb-5">
+      {/* Titel */}
+      <div className="flex items-center gap-2">
         <Wind className="text-blue-700" size={20} />
         <h2 className="text-lg font-semibold text-blue-900">Sturmabfrage</h2>
       </div>
 
+      {/* Abfrageparameter */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* PLZ */}
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">
             Postleitzahl *
@@ -50,7 +60,6 @@ export default function SearchForm({ onSubmit, loading }) {
           />
         </div>
 
-        {/* Schadensdatum */}
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">
             Schadensdatum *
@@ -66,7 +75,6 @@ export default function SearchForm({ onSubmit, loading }) {
           />
         </div>
 
-        {/* Zeitraum Von */}
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">
             Auswertung von
@@ -81,7 +89,6 @@ export default function SearchForm({ onSubmit, loading }) {
           />
         </div>
 
-        {/* Zeitraum Bis */}
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">
             Auswertung bis
@@ -98,8 +105,8 @@ export default function SearchForm({ onSubmit, loading }) {
         </div>
       </div>
 
-      {/* Quellen */}
-      <div className="mt-4">
+      {/* Datenquellen */}
+      <div>
         <label className="block text-xs font-semibold text-gray-600 mb-2">
           Datenquellen
         </label>
@@ -127,7 +134,71 @@ export default function SearchForm({ onSubmit, loading }) {
         </div>
       </div>
 
-      <div className="mt-5 flex justify-end">
+      {/* Kundendaten */}
+      <div className="border-t border-gray-100 pt-4">
+        <div className="flex items-center gap-2 mb-3">
+          <User className="text-gray-400" size={15} />
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Kundendaten für PDF-Nachweis (optional)
+          </span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Versicherungsnehmer
+            </label>
+            <input
+              type="text"
+              value={insuredName}
+              onChange={e => setInsuredName(e.target.value)}
+              placeholder="Max Mustermann"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm
+                focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Adresse des Versicherungsortes
+            </label>
+            <input
+              type="text"
+              value={insuredAddress}
+              onChange={e => setInsuredAddress(e.target.value)}
+              placeholder="Musterstraße 1, 46395 Bocholt"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm
+                focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Versicherungsnummer / Vertragsnummer
+            </label>
+            <input
+              type="text"
+              value={policyNumber}
+              onChange={e => setPolicyNumber(e.target.value)}
+              placeholder="VS-2024-001234"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm
+                focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Schadensnummer
+            </label>
+            <input
+              type="text"
+              value={claimNumber}
+              onChange={e => setClaimNumber(e.target.value)}
+              placeholder="SCH-2024-005678"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm
+                focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
         <button
           type="submit"
           disabled={loading || plz.length !== 5}

@@ -94,16 +94,28 @@ async def query_all_sources(
 def _merge_by_date(events: list[StormEvent]) -> list[StormEvent]:
     """
     Für jeden Tag: behält den Eintrag mit der höchsten Böe.
+    Sammelt alle bestätigenden Quellen in confirming_sources.
     Sortiert absteigend nach Datum.
     """
     by_date: dict[date, StormEvent] = {}
+    sources_by_date: dict[date, set[str]] = {}
+
     for event in events:
+        if event.date not in sources_by_date:
+            sources_by_date[event.date] = set()
+        sources_by_date[event.date].add(event.source)
+
         if event.date not in by_date:
             by_date[event.date] = event
         elif event.max_gust_kmh > by_date[event.date].max_gust_kmh:
             by_date[event.date] = event
 
-    return sorted(by_date.values(), key=lambda e: e.date, reverse=True)
+    result = []
+    for d, event in by_date.items():
+        all_sources = sorted(sources_by_date[d])
+        result.append(event.model_copy(update={"confirming_sources": all_sources}))
+
+    return sorted(result, key=lambda e: e.date, reverse=True)
 
 
 async def get_last_storm(

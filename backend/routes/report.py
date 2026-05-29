@@ -36,6 +36,7 @@ async def generate_pdf_report(request: PdfReportRequest):
             damage_date=request.damage_date,
             policy_number=request.policy_number,
             insured_name=request.insured_name,
+            insured_address=request.insured_address,
             claim_number=request.claim_number,
         )
 

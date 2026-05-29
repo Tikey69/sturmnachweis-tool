@@ -7,12 +7,14 @@ import logging
 from datetime import date, datetime
 from pathlib import Path
 
-import cairosvg
+import re
+import base64
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
+from PIL import Image as PILImage
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -33,15 +35,44 @@ LOGO_PATH = Path(__file__).parent.parent / "assets" / "logo.svg"
 
 
 def _logo_image(width_cm: float, height_cm: float) -> Image | None:
-    """Konvertiert das SVG-Logo zu einem ReportLab-Image-Objekt."""
+    """
+    Lädt das Logo für den PDF-Report.
+    Extrahiert das eingebettete PNG direkt aus dem SVG (das SVG ist für dunkle Hintergründe
+    mit weißer Darstellung optimiert; das eingebettete PNG enthält das Original-Logo).
+    """
     try:
+        svg_text = LOGO_PATH.read_text(encoding="utf-8", errors="ignore")
+        m = re.search(r'data:image/png;base64,([A-Za-z0-9+/=\s]+)', svg_text)
+        if m:
+            raw_png = base64.b64decode(m.group(1).replace("\n", "").strip())
+            pil_img = PILImage.open(io.BytesIO(raw_png)).convert("RGBA")
+            # Weißer Hintergrund für PDF (das Original-PNG hat transparenten Hintergrund)
+            white_bg = PILImage.new("RGBA", pil_img.size, (255, 255, 255, 255))
+            composite = PILImage.alpha_composite(white_bg, pil_img)
+            rgb_img = composite.convert("RGB")
+            # Zielgröße
+            target_w = int(width_cm * 150 / 2.54)  # 150 dpi
+            aspect = pil_img.height / pil_img.width
+            target_h = int(target_w * aspect)
+            rgb_img = rgb_img.resize((target_w, target_h), PILImage.LANCZOS)
+            out = io.BytesIO()
+            rgb_img.save(out, format="PNG")
+            out.seek(0)
+            return Image(out, width=width_cm * cm, height=height_cm * cm)
+    except Exception as e:
+        logger.warning("Logo (PIL/SVG-Extraktion) fehlgeschlagen: %s", e)
+
+    # Fallback: cairosvg
+    try:
+        import cairosvg
         png_bytes = cairosvg.svg2png(
             url=str(LOGO_PATH),
-            output_width=int(width_cm * 96 / 2.54),  # cm → px (96 dpi)
+            output_width=int(width_cm * 96 / 2.54),
+            background_color="white",
         )
         return Image(io.BytesIO(png_bytes), width=width_cm * cm, height=height_cm * cm)
     except Exception as e:
-        logger.warning("Logo konnte nicht geladen werden: %s", e)
+        logger.warning("Logo (cairosvg) fehlgeschlagen: %s", e)
         return None
 
 
@@ -157,6 +188,7 @@ def generate_pdf(
     damage_date: date,
     policy_number: str | None = None,
     insured_name: str | None = None,
+    insured_address: str | None = None,
     claim_number: str | None = None,
 ) -> bytes:
     """
@@ -234,6 +266,7 @@ def generate_pdf(
          "Schadensnummer:", claim_number or "—"],
         ["Versicherungsnehmer:", insured_name or "—",
          "Vertragsnummer:", policy_number or "—"],
+        ["Adresse:", insured_address or "—", "", ""],
     ]
     doc_table = Table(doc_info, colWidths=[3.5*cm, 5.5*cm, 3.5*cm, 4.0*cm])
     doc_table.setStyle(TableStyle([
@@ -262,10 +295,17 @@ def generate_pdf(
 
     if damage_events:
         best = max(damage_events, key=lambda e: e.max_gust_kmh)
+        n_sources = len(best.confirming_sources)
+        sources_str = " · ".join(best.confirming_sources) if best.confirming_sources else best.source
+        multi_src = (
+            f" <b>Mehrfachbestätigung durch {n_sources} unabhängige Quellen: {sources_str}.</b>"
+            if n_sources >= 2 else f" Quelle: {sources_str}."
+        )
         status_text = (
             f"✔ Am {best.date.strftime('%d.%m.%Y')} wurde eine maximale Windböe von "
             f"<b>{best.max_gust_kmh:.1f} km/h (Bft {best.beaufort})</b> gemessen. "
             f"Die Versicherungsvoraussetzung (≥ Bft 8 / ≥ 62 km/h) ist erfüllt."
+            f"{multi_src}"
         )
         box_color = colors.HexColor("#dff0d8")
         text_color = colors.HexColor("#2d6a2d")
@@ -313,17 +353,29 @@ def generate_pdf(
         table_data = [[
             Paragraph("<b>Datum</b>", label),
             Paragraph("<b>Max. Böe (km/h)</b>", label),
-            Paragraph("<b>Max. Böe (m/s)</b>", label),
             Paragraph("<b>Beaufort</b>", label),
-            Paragraph("<b>Mittelwind (km/h)</b>", label),
-            Paragraph("<b>Datenquelle</b>", label),
+            Paragraph("<b>Mittelwind</b>", label),
+            Paragraph("<b>Bestätigende Quellen</b>", label),
         ]]
 
         row_styles = []
         for i, event in enumerate(result.storm_days, 1):
             bft_color = colors.HexColor(_beaufort_color(event.beaufort))
             is_damage_day = abs((event.date - damage_date).days) <= 1
+            n_src = len(event.confirming_sources)
+            src_list = event.confirming_sources if event.confirming_sources else [event.source]
 
+            if n_src >= 3:
+                src_color = "#276749"  # Dunkelgrün
+                src_prefix = f"✔✔✔ {n_src} Quellen: "
+            elif n_src == 2:
+                src_color = "#b45309"  # Amber
+                src_prefix = f"✔✔ 2 Quellen: "
+            else:
+                src_color = "#374151"
+                src_prefix = ""
+
+            src_text = src_prefix + " · ".join(src_list)
             row = [
                 Paragraph(
                     f"<b>{event.date.strftime('%d.%m.%Y')}</b>" +
@@ -331,28 +383,32 @@ def generate_pdf(
                     ParagraphStyle("td", fontSize=8.5, fontName="Helvetica",
                         textColor=COLOR_PRIMARY if is_damage_day else COLOR_TEXT)
                 ),
-                Paragraph(f"{event.max_gust_kmh:.1f}", normal),
-                Paragraph(f"{event.max_gust_ms:.1f}", normal),
+                Paragraph(
+                    f"<b>{event.max_gust_kmh:.1f}</b><br/>"
+                    f"<font size='7' color='#6b7280'>{event.max_gust_ms:.1f} m/s</font>",
+                    ParagraphStyle("gust", fontSize=8.5, fontName="Helvetica", leading=11)
+                ),
                 Paragraph(f"Bft {event.beaufort}", ParagraphStyle(
                     "bft", fontSize=9, fontName="Helvetica-Bold",
                     textColor=colors.white if event.beaufort >= 9 else COLOR_TEXT)),
-                Paragraph(f"{event.mean_wind_kmh:.1f}" if event.mean_wind_kmh else "—", normal),
-                Paragraph(event.source, small),
+                Paragraph(f"{event.mean_wind_kmh:.1f} km/h" if event.mean_wind_kmh else "—", normal),
+                Paragraph(src_text, ParagraphStyle(
+                    "srcs", fontSize=7.5, fontName="Helvetica-Bold" if n_src >= 2 else "Helvetica",
+                    textColor=colors.HexColor(src_color), leading=10)),
             ]
             table_data.append(row)
 
-            # Beaufort-Farbkodierung der Bft-Spalte
-            row_styles.append(
-                ("BACKGROUND", (3, i), (3, i), bft_color)
-            )
+            row_styles.append(("BACKGROUND", (2, i), (2, i), bft_color))
             if is_damage_day:
-                row_styles.append(
-                    ("BACKGROUND", (0, i), (-1, i), colors.HexColor("#e8f4fd"))
-                )
+                row_styles.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#e8f4fd")))
+            elif n_src >= 3:
+                row_styles.append(("BACKGROUND", (4, i), (4, i), colors.HexColor("#f0fdf4")))
+            elif n_src == 2:
+                row_styles.append(("BACKGROUND", (4, i), (4, i), colors.HexColor("#fffbeb")))
 
         events_table = Table(
             table_data,
-            colWidths=[3.5*cm, 3.2*cm, 3.0*cm, 2.3*cm, 3.0*cm, 3.0*cm]
+            colWidths=[3.2*cm, 2.8*cm, 2.2*cm, 2.5*cm, 5.8*cm]
         )
         base_style = [
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
@@ -361,10 +417,10 @@ def generate_pdf(
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, COLOR_LIGHT]),
             ("GRID", (0, 0), (-1, -1), 0.5, COLOR_BORDER),
-            ("ALIGN", (1, 0), (4, -1), "CENTER"),
+            ("ALIGN", (1, 0), (3, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("PADDING", (0, 0), (-1, -1), 5),
-            ("TEXTCOLOR", (3, 1), (3, -1), COLOR_TEXT),
+            ("TEXTCOLOR", (2, 1), (2, -1), COLOR_TEXT),
         ]
         events_table.setStyle(TableStyle(base_style + row_styles))
         story.append(events_table)
