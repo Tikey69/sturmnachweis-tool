@@ -4,6 +4,7 @@ import SearchForm from './components/SearchForm'
 import LastStormCard from './components/LastStormCard'
 import StormChart from './components/StormChart'
 import ResultsTable from './components/ResultsTable'
+import NewsCard from './components/NewsCard'
 
 export default function App() {
   const [loading, setLoading] = useState(false)
@@ -40,8 +41,7 @@ export default function App() {
         const err = await resp.json()
         throw new Error(err.detail || 'Unbekannter Fehler')
       }
-      const data = await resp.json()
-      setResult(data)
+      setResult(await resp.json())
     } catch (e) {
       setError(e.message)
     } finally {
@@ -86,111 +86,136 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-blue-900 text-white shadow-lg">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-6">
-          {/* Logo mit weißem ovalem Hintergrund */}
-          <div className="bg-white rounded-[2rem] px-4 py-2 shadow-sm flex items-center justify-center">
-            <img
-              src="/logo.svg"
-              alt="Firmenlogo"
-              className="h-16 w-auto object-contain"
-            />
+    <div style={{ position: 'relative', zIndex: 1 }}>
+      {/* ── Header ── */}
+      <header style={{
+        background: 'rgba(10,20,50,0.65)',
+        backdropFilter: 'blur(30px)',
+        WebkitBackdropFilter: 'blur(30px)',
+        borderBottom: '1px solid rgba(255,255,255,0.1)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+      }}>
+        <div className="max-w-screen-2xl mx-auto px-6 py-3 flex items-center justify-between gap-6">
+          <div style={{
+            background: 'rgba(255,255,255,0.95)',
+            borderRadius: '12px',
+            padding: '6px 16px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.25), 0 1px 3px rgba(255,255,255,0.1) inset',
+          }}>
+            <img src="/logo.svg" alt="Firmenlogo" style={{ height: 56, width: 'auto', objectFit: 'contain', display: 'block' }} />
           </div>
-          <div className="text-right text-xs text-blue-300 shrink-0">
-            <p className="text-white font-semibold text-sm mb-1">Sturmnachweis-Tool</p>
-            <p>Quellen: DWD · Open-Meteo · KNMI</p>
-            <p>Beaufort-Schwellwert: ≥ Bft 8 (≥ 62 km/h)</p>
+
+          <div className="flex items-center gap-2">
+            <span className="header-badge">DWD Borken</span>
+            <span className="header-badge">Open-Meteo ERA5</span>
+            <span className="header-badge">KNMI</span>
+          </div>
+
+          <div style={{ textAlign: 'right', lineHeight: '1.6' }}>
+            <p style={{ color: 'white', fontWeight: 700, fontSize: 13, marginBottom: 2 }}>Sturmnachweis-Tool</p>
+            <p style={{ color: '#94a3b8', fontSize: 10 }}>Beaufort-Schwellwert: ≥ Bft 8 (≥ 62 km/h)</p>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-5">
-        {/* Suchformular */}
+      {/* ── Main ── */}
+      <main className="max-w-screen-2xl mx-auto px-6 py-7" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
         <SearchForm onSubmit={handleSearch} loading={loading} />
 
-        {/* Fehleranzeige */}
+        {/* Error */}
         {error && (
-          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">
-            <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 12,
+            background: 'rgba(239,68,68,0.12)',
+            border: '1px solid rgba(239,68,68,0.3)',
+            borderRadius: 14, padding: '14px 16px',
+            color: '#fca5a5',
+          }}>
+            <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
-              <p className="font-semibold text-sm">Fehler bei der Abfrage</p>
-              <p className="text-sm mt-0.5">{error}</p>
+              <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>Fehler bei der Abfrage</p>
+              <p style={{ fontSize: 12, opacity: 0.85 }}>{error}</p>
             </div>
           </div>
         )}
 
-        {/* Ladezustand */}
+        {/* Loading */}
         {loading && (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-700 mx-auto mb-3"></div>
-            <p className="text-gray-600 text-sm">Wetterdaten werden abgefragt…</p>
-            <p className="text-gray-400 text-xs mt-1">DWD · Open-Meteo ERA5 · Geocoding</p>
+          <div className="glass-card" style={{ padding: '40px 24px', textAlign: 'center' }}>
+            <div style={{
+              width: 44, height: 44,
+              border: '3px solid rgba(255,255,255,0.08)',
+              borderTop: '3px solid #3b82f6',
+              borderRadius: '50%',
+              margin: '0 auto 16px',
+              animation: 'spin 0.8s linear infinite',
+            }} />
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+            <p style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600 }}>Wetterdaten werden abgefragt…</p>
+            <p style={{ color: '#475569', fontSize: 11, marginTop: 4 }}>DWD · Open-Meteo ERA5 · Geocoding</p>
           </div>
         )}
 
-        {/* Ergebnisse */}
+        {/* Results */}
         {result && !loading && (
           <>
-            {/* Zusammenfassung + PDF-Button */}
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <LastStormCard
-                  location={result.location}
-                  lastStorm={result.last_storm}
-                  damageDate={lastQuery?.damageDate}
-                  stormDays={result.storm_days}
-                />
-              </div>
+            {/* Summary row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 14, alignItems: 'stretch' }}>
+              <LastStormCard
+                location={result.location}
+                lastStorm={result.last_storm}
+                damageDate={lastQuery?.damageDate}
+                stormDays={result.storm_days}
+              />
 
-              {/* Statistik-Karten */}
-              <div className="flex flex-col gap-3 min-w-[160px]">
-                <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-                  <p className="text-3xl font-bold text-blue-900">{result.total_storm_days}</p>
-                  <p className="text-xs text-gray-500 mt-1">Sturmtage im Zeitraum</p>
-                </div>
-                <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-                  <p className="text-xs font-semibold text-gray-500 mb-1">Quellen</p>
+              {/* Stat card */}
+              <div className="glass-card card-pop" style={{ padding: '20px 16px', textAlign: 'center', minWidth: 110 }}>
+                <p className="gradient-text" style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>
+                  {result.total_storm_days}
+                </p>
+                <p style={{ color: '#94a3b8', fontSize: 10, marginTop: 5, fontWeight: 500 }}>Sturmtage<br />im Zeitraum</p>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', margin: '10px 0' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   {result.sources_used.map(s => (
-                    <span key={s} className="block text-xs font-medium text-blue-700">{s}</span>
+                    <span key={s} style={{ color: '#93c5fd', fontSize: 10, fontWeight: 600 }}>{s}</span>
                   ))}
                 </div>
-                <button
-                  onClick={handleDownloadPdf}
-                  disabled={pdfLoading}
-                  className="flex items-center justify-center gap-2 bg-green-700 hover:bg-green-800
-                    disabled:bg-gray-400 text-white font-semibold px-4 py-3 rounded-xl text-sm
-                    transition-colors shadow-sm"
-                >
-                  <FileDown size={18} />
-                  {pdfLoading ? 'Erstelle PDF…' : 'PDF-Nachweis'}
-                </button>
               </div>
+
+              {/* PDF button */}
+              <button onClick={handleDownloadPdf} disabled={pdfLoading} className="btn-pdf">
+                <FileDown size={22} />
+                <span>{pdfLoading ? 'Erstelle…' : 'PDF-Nachweis'}</span>
+                <span style={{ fontSize: 9, opacity: 0.6 }}>Download</span>
+              </button>
             </div>
 
-            {/* Diagramm */}
             {result.storm_days.length > 0 && (
-              <StormChart
-                stormDays={result.storm_days}
-                damageDate={lastQuery?.damageDate}
-              />
+              <StormChart stormDays={result.storm_days} damageDate={lastQuery?.damageDate} />
             )}
 
-            {/* Tabelle */}
-            <ResultsTable
-              stormDays={result.storm_days}
-              damageDate={lastQuery?.damageDate}
-            />
+            <ResultsTable stormDays={result.storm_days} damageDate={lastQuery?.damageDate} />
 
-            {/* Quellenhinweis */}
-            <div className="bg-gray-100 rounded-xl p-4 text-xs text-gray-500">
-              <p className="font-semibold mb-1">Datenquellen-Hinweis</p>
-              <p>
-                Open-Meteo ERA5: Globale Klimareanalyse ECMWF, ab 1940, CC BY 4.0. |
-                DWD CDC: Offizielle Messung Station Borken/Westfalen (ID 617), ab 2004. |
-                Für verbindliche amtliche Gutachten: DWD Wettergutachten-Service (kostenpflichtig).
-              </p>
+            <NewsCard plz={lastQuery?.plz} damageDate={lastQuery?.damageDate} />
+
+            {/* Footer note */}
+            <div style={{
+              background: 'rgba(255,255,255,0.04)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.07)',
+              borderRadius: 12,
+              padding: '12px 16px',
+              color: '#475569',
+              fontSize: 10,
+              lineHeight: 1.7,
+            }}>
+              <span style={{ color: '#64748b', fontWeight: 600 }}>Datenquellen-Hinweis: </span>
+              Open-Meteo ERA5: Globale Klimareanalyse ECMWF, ab 1940, CC BY 4.0. |
+              DWD CDC: Offizielle Messung Station Borken/Westfalen (ID 617), ab 2004. |
+              Für verbindliche amtliche Gutachten: DWD Wettergutachten-Service (kostenpflichtig).
             </div>
           </>
         )}

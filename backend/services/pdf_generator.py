@@ -34,45 +34,72 @@ logger = logging.getLogger(__name__)
 LOGO_PATH = Path(__file__).parent.parent / "assets" / "logo.svg"
 
 
-def _logo_image(width_cm: float, height_cm: float) -> Image | None:
+def _logo_image(width_cm: float, max_height_cm: float = 3.0) -> Image | None:
     """
     Lädt das Logo für den PDF-Report.
-    Extrahiert das eingebettete PNG direkt aus dem SVG (das SVG ist für dunkle Hintergründe
-    mit weißer Darstellung optimiert; das eingebettete PNG enthält das Original-Logo).
+    Berechnet die Höhe automatisch aus dem echten Seitenverhältnis des Logos —
+    kein manuelles height_cm mehr, das zu Verzerrungen führen würde.
+    max_height_cm begrenzt die Höhe nach oben (Standardwert 3.0 cm).
     """
     try:
+        import numpy as np
         svg_text = LOGO_PATH.read_text(encoding="utf-8", errors="ignore")
         m = re.search(r'data:image/png;base64,([A-Za-z0-9+/=\s]+)', svg_text)
-        if m:
-            raw_png = base64.b64decode(m.group(1).replace("\n", "").strip())
-            pil_img = PILImage.open(io.BytesIO(raw_png)).convert("RGBA")
-            # Weißer Hintergrund für PDF (das Original-PNG hat transparenten Hintergrund)
-            white_bg = PILImage.new("RGBA", pil_img.size, (255, 255, 255, 255))
-            composite = PILImage.alpha_composite(white_bg, pil_img)
-            rgb_img = composite.convert("RGB")
-            # Zielgröße
-            target_w = int(width_cm * 150 / 2.54)  # 150 dpi
-            aspect = pil_img.height / pil_img.width
-            target_h = int(target_w * aspect)
-            rgb_img = rgb_img.resize((target_w, target_h), PILImage.LANCZOS)
-            out = io.BytesIO()
-            rgb_img.save(out, format="PNG")
-            out.seek(0)
-            return Image(out, width=width_cm * cm, height=height_cm * cm)
-    except Exception as e:
-        logger.warning("Logo (PIL/SVG-Extraktion) fehlgeschlagen: %s", e)
+        if not m:
+            raise ValueError("Kein PNG-Embed im SVG gefunden")
 
-    # Fallback: cairosvg
-    try:
-        import cairosvg
-        png_bytes = cairosvg.svg2png(
-            url=str(LOGO_PATH),
-            output_width=int(width_cm * 96 / 2.54),
-            background_color="white",
-        )
-        return Image(io.BytesIO(png_bytes), width=width_cm * cm, height=height_cm * cm)
+        raw_png = base64.b64decode(m.group(1).replace("\n", "").strip())
+        src = PILImage.open(io.BytesIO(raw_png)).convert("RGB")
+        arr = np.array(src, dtype=np.float32)
+
+        # Luminanz bestimmt die Logo-Silhouette
+        luminance = (0.2126 * arr[:, :, 0]
+                     + 0.7152 * arr[:, :, 1]
+                     + 0.0722 * arr[:, :, 2])
+
+        # Normalisieren (min→0, max→255) + Gamma-Boost für Sichtbarkeit
+        lum_min, lum_max = float(luminance.min()), float(luminance.max())
+        normalized = (luminance - lum_min) / max(lum_max - lum_min, 1.0) * 255.0
+        gamma = 0.4  # < 1: hebt Mitteltöne an → Logo wirkt dunkler/klarer
+        alpha = np.clip((normalized / 255.0) ** gamma * 255.0, 0, 255).astype(np.uint8)
+
+        # Dunkelblau (#1a3a5c) als Logofarbe auf weißem Hintergrund
+        result = np.ones((arr.shape[0], arr.shape[1], 4), dtype=np.uint8) * 255
+        result[:, :, 0] = 26   # #1a3a5c R
+        result[:, :, 1] = 58   # G
+        result[:, :, 2] = 92   # B
+        result[:, :, 3] = alpha  # hell im Original = opak dunkelblau im PDF
+
+        logo_layer = PILImage.fromarray(result, "RGBA")
+        white_bg = PILImage.new("RGBA", logo_layer.size, (255, 255, 255, 255))
+        composite = PILImage.alpha_composite(white_bg, logo_layer)
+        rgb_img = composite.convert("RGB")
+
+        # Echtes Seitenverhältnis des Logos berechnen
+        actual_aspect = src.height / src.width  # z.B. 0.616 für 1097x676 px
+        actual_height_cm = width_cm * actual_aspect
+
+        # Breite ggf. reduzieren damit max_height_cm nicht überschritten wird
+        if actual_height_cm > max_height_cm:
+            actual_height_cm = max_height_cm
+            effective_width_cm = actual_height_cm / actual_aspect
+        else:
+            effective_width_cm = width_cm
+
+        # Zielgröße (150 dpi)
+        target_w = int(effective_width_cm * 150 / 2.54)
+        target_h = int(actual_height_cm * 150 / 2.54)
+        rgb_img = rgb_img.resize((target_w, target_h), PILImage.LANCZOS)
+
+        out = io.BytesIO()
+        rgb_img.save(out, format="PNG")
+        out.seek(0)
+        logger.info("Logo extrahiert (%dx%d px, %.2fcm x %.2fcm)",
+                    target_w, target_h, effective_width_cm, actual_height_cm)
+        return Image(out, width=effective_width_cm * cm, height=actual_height_cm * cm)
+
     except Exception as e:
-        logger.warning("Logo (cairosvg) fehlgeschlagen: %s", e)
+        logger.warning("Logo (Luminanz/PIL) fehlgeschlagen: %s", e)
         return None
 
 
@@ -190,6 +217,7 @@ def generate_pdf(
     insured_name: str | None = None,
     insured_address: str | None = None,
     claim_number: str | None = None,
+    news_result: dict | None = None,
 ) -> bytes:
     """
     Erstellt ein professionelles PDF-Dokument als Sturmnachweis.
@@ -234,7 +262,7 @@ def generate_pdf(
     report_date = date.today()
 
     # ── KOPFZEILE ────────────────────────────────────────────────────────────
-    logo = _logo_image(width_cm=7.0, height_cm=2.2)
+    logo = _logo_image(width_cm=5.0, max_height_cm=3.1)
     left_cell = logo if logo is not None else Paragraph(
         f"<b>{settings.company_name}</b>",
         ParagraphStyle("comp", fontSize=11, fontName="Helvetica-Bold",
@@ -431,6 +459,70 @@ def generate_pdf(
         ))
 
     story.append(Spacer(1, 0.7*cm))
+
+    # ── LOKALE PRESSEMELDUNGEN (nur wenn Artikel tatsächlich gefunden) ──────────
+    if news_result and news_result.get("found") and news_result.get("articles"):
+        story.append(HRFlowable(width="100%", thickness=1, color=COLOR_BORDER))
+        story.append(Spacer(1, 0.3*cm))
+        story.append(Paragraph("Lokale Pressemeldungen (BBV-Net)", h2))
+        story.append(Paragraph(
+            f"Automatisch recherchierte Berichte zum Schadensdatum bei Bocholter-Borkener Volksblatt (bbv-net.de).",
+            small
+        ))
+        story.append(Spacer(1, 0.3*cm))
+
+        articles = news_result.get("articles", [])
+        if articles:
+            art_data = [[
+                Paragraph("<b>Überschrift</b>", label),
+                Paragraph("<b>Datum</b>", label),
+            ]]
+            for art in articles:
+                art_data.append([
+                    Paragraph(art.get("title", "")[:120], normal),
+                    Paragraph(art.get("date", "")[:20], small),
+                ])
+            art_table = Table(art_data, colWidths=[13.0*cm, 3.5*cm])
+            art_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), COLOR_PRIMARY),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, COLOR_LIGHT]),
+                ("GRID", (0, 0), (-1, -1), 0.5, COLOR_BORDER),
+                ("PADDING", (0, 0), (-1, -1), 5),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]))
+            story.append(art_table)
+            story.append(Spacer(1, 0.3*cm))
+        else:
+            story.append(Paragraph(
+                "Keine sturmrelevanten Meldungen in der Nähe des Schadensdatums gefunden.",
+                small
+            ))
+
+        # Screenshot einbetten (nur wenn vorhanden und Artikel gefunden)
+        screenshot_bytes = news_result.get("screenshot") if articles else None
+        if screenshot_bytes:
+            story.append(Paragraph("Screenshot der BBV-Net Suchergebnisse:", small))
+            story.append(Spacer(1, 0.2*cm))
+            try:
+                from PIL import Image as PILImage
+                pil_shot = PILImage.open(io.BytesIO(screenshot_bytes))
+                aspect = pil_shot.height / pil_shot.width
+                shot_w = 16.5 * cm
+                shot_h = shot_w * aspect
+                # Höhe begrenzen
+                if shot_h > 10 * cm:
+                    shot_h = 10 * cm
+                story.append(Image(io.BytesIO(screenshot_bytes), width=shot_w, height=shot_h))
+                story.append(Paragraph(
+                    f"Quelle: {news_result.get('search_url', 'bbv-net.de')}",
+                    disclaimer
+                ))
+            except Exception as e:
+                logger.warning("BBV-Net Screenshot konnte nicht eingebettet werden: %s", e)
+
+        story.append(Spacer(1, 0.5*cm))
 
     # ── DATENQUELLEN ──────────────────────────────────────────────────────────
     story.append(HRFlowable(width="100%", thickness=1, color=COLOR_BORDER))

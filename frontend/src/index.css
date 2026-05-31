@@ -2,7 +2,275 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Global background ── */
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: #f0f4f8;
+  background: linear-gradient(135deg, #0f1f4a 0%, #1a3a6e 30%, #0e2d5a 60%, #162447 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
 }
+
+/* Animated light orbs */
+body::before {
+  content: '';
+  position: fixed;
+  top: -15%;
+  right: -8%;
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(circle, rgba(59,130,246,0.16) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  animation: orb1 9s ease-in-out infinite;
+}
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -15%;
+  left: -8%;
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, rgba(16,185,129,0.10) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  animation: orb2 11s ease-in-out infinite;
+}
+@keyframes orb1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-28px,22px)} }
+@keyframes orb2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(22px,-26px)} }
+
+/* ── Glass card base ── */
+.glass-card {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25), 0 1px 0 rgba(255,255,255,0.08) inset;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+}
+/* Shimmer top edge */
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.28) 50%, transparent 100%);
+  pointer-events: none;
+}
+.glass-card:hover {
+  box-shadow: 0 16px 48px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.2), 0 1px 0 rgba(255,255,255,0.1) inset;
+  border-color: rgba(255,255,255,0.22);
+  transform: translateY(-3px);
+}
+
+/* ── 3D lift card (result cards) ── */
+.card-3d {
+  transform-style: preserve-3d;
+  perspective: 1200px;
+  transition: all 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.card-3d:hover {
+  transform: translateY(-6px) rotateX(2.5deg) rotateY(-1.5deg);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.22), 0 1px 0 rgba(255,255,255,0.12) inset;
+  border-color: rgba(255,255,255,0.25);
+}
+
+/* ── Spring-pop card (stat + PDF) ── */
+.card-pop {
+  transition: all 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.card-pop:hover {
+  transform: translateY(-7px) scale(1.05);
+  box-shadow: 0 22px 56px rgba(0,0,0,0.38), 0 0 0 1px rgba(255,255,255,0.22);
+  border-color: rgba(255,255,255,0.25);
+}
+
+/* ── Glass input ── */
+.glass-input {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 10px;
+  color: #e2e8f0;
+  font-size: 14px;
+  padding: 9px 12px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  /* date picker icon color */
+  color-scheme: dark;
+}
+.glass-input::placeholder { color: #475569; }
+.glass-input:focus {
+  border-color: rgba(59,130,246,0.6);
+  background: rgba(59,130,246,0.1);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+}
+
+/* ── Field label ── */
+.field-label {
+  display: block;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+/* ── Source chip toggle ── */
+.source-chip {
+  padding: 5px 13px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.source-chip-on {
+  background: rgba(59,130,246,0.22);
+  border-color: rgba(59,130,246,0.45);
+  color: #93c5fd;
+}
+.source-chip-on:hover {
+  background: rgba(59,130,246,0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59,130,246,0.25);
+}
+.source-chip-off {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.1);
+  color: #475569;
+}
+.source-chip-off:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.2);
+  color: #94a3b8;
+}
+
+/* ── Primary button ── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  border: none;
+  border-radius: 11px;
+  padding: 11px 26px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 16px rgba(37,99,235,0.4);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 28px rgba(37,99,235,0.5);
+}
+.btn-primary:active:not(:disabled) { transform: scale(0.98); }
+.btn-primary:disabled {
+  background: rgba(255,255,255,0.1);
+  color: #475569;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ── PDF button ── */
+.btn-pdf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(34,197,94,0.15);
+  border: 1px solid rgba(34,197,94,0.35);
+  border-radius: 16px;
+  color: #4ade80;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 14px 12px;
+  min-width: 90px;
+  box-shadow: 0 8px 24px rgba(34,197,94,0.12);
+  transition: all 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+  backdrop-filter: blur(18px);
+}
+.btn-pdf:hover:not(:disabled) {
+  background: rgba(34,197,94,0.28);
+  border-color: rgba(34,197,94,0.55);
+  transform: translateY(-7px) scale(1.06);
+  box-shadow: 0 18px 44px rgba(34,197,94,0.22);
+  color: #86efac;
+}
+.btn-pdf:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Badge / pill ── */
+.header-badge {
+  background: rgba(59,130,246,0.2);
+  border: 1px solid rgba(59,130,246,0.35);
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+}
+
+/* ── Gradient text ── */
+.gradient-text {
+  background: linear-gradient(135deg, #60a5fa, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Beaufort badge ── */
+.bft-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── Source badge ── */
+.src-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-right: 3px;
+}
+.src-badge-blue  { background: rgba(59,130,246,0.2);  border: 1px solid rgba(59,130,246,0.3);  color: #93c5fd; }
+.src-badge-amber { background: rgba(245,158,11,0.18); border: 1px solid rgba(245,158,11,0.3);  color: #fcd34d; }
+.src-badge-green { background: rgba(34,197,94,0.15);  border: 1px solid rgba(34,197,94,0.3);   color: #86efac; }
+.src-badge-purple{ background: rgba(168,85,247,0.18); border: 1px solid rgba(168,85,247,0.3);  color: #d8b4fe; }
+
+/* ── Triple confirm badge ── */
+.triple-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.triple-3 { background: rgba(34,197,94,0.18);  border: 1px solid rgba(34,197,94,0.3);  color: #86efac; }
+.triple-2 { background: rgba(245,158,11,0.18); border: 1px solid rgba(245,158,11,0.3); color: #fcd34d; }
+
+/* ── Table row hover ── */
+tbody tr { transition: background 0.15s ease; }

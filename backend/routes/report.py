@@ -1,9 +1,11 @@
+import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from datetime import date, timedelta
 from models.schemas import PdfReportRequest
 from services import aggregator, pdf_generator
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/report", tags=["report"])
 
 
@@ -11,7 +13,7 @@ router = APIRouter(prefix="/api/report", tags=["report"])
 async def generate_pdf_report(request: PdfReportRequest):
     """
     Generiert einen offiziellen Sturmnachweis als PDF.
-    Enthält Datentabelle, Diagramm und Quellenangaben.
+    Enthält Datentabelle, Diagramm, Quellenangaben und optional BBV-Net-Pressemeldungen.
     """
     report_date = request.report_date or date.today()
     start_date = request.start_date or (request.damage_date - timedelta(days=1))
@@ -23,6 +25,10 @@ async def generate_pdf_report(request: PdfReportRequest):
         end_date   = request.damage_date + timedelta(days=1)
 
     try:
+        from services.geocode import plz_to_coordinates
+        from services import news_scraper
+
+        # Wetterdaten abrufen (Ortsname für News-Scraper benötigt)
         result = await aggregator.query_all_sources(
             plz=request.plz,
             start_date=start_date,
@@ -31,6 +37,16 @@ async def generate_pdf_report(request: PdfReportRequest):
             sources=request.sources,
         )
 
+        # News-Scraper mit korrektem Ortsnamen
+        news_result = None
+        try:
+            news_result = await news_scraper.search_storm_news(
+                damage_date=request.damage_date,
+                location_name=result.location.ort,
+            )
+        except Exception as e:
+            logger.warning("BBV-Net News fehlgeschlagen (wird ignoriert): %s", e)
+
         pdf_bytes = pdf_generator.generate_pdf(
             result=result,
             damage_date=request.damage_date,
@@ -38,6 +54,7 @@ async def generate_pdf_report(request: PdfReportRequest):
             insured_name=request.insured_name,
             insured_address=request.insured_address,
             claim_number=request.claim_number,
+            news_result=news_result,
         )
 
         filename = (

@@ -4,24 +4,23 @@ function SourceBadges({ event }) {
   const sources = event.confirming_sources?.length ? event.confirming_sources : [event.source]
   const n = sources.length
 
+  const badgeClass = (src) => {
+    if (src.includes('DWD'))    return 'src-badge src-badge-amber'
+    if (src.includes('KNMI'))   return 'src-badge src-badge-green'
+    if (src.includes('Visual')) return 'src-badge src-badge-purple'
+    return 'src-badge src-badge-blue'
+  }
+
   return (
-    <div className="flex flex-col gap-1">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       {n >= 2 && (
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold
-          ${n >= 3 ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+        <span className={`triple-badge ${n >= 3 ? 'triple-3' : 'triple-2'}`}>
           {n >= 3 ? '✔✔✔' : '✔✔'} {n} Quellen bestätigt
         </span>
       )}
-      <div className="flex flex-wrap gap-1">
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
         {sources.map(src => (
-          <span key={src}
-            className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium
-              ${src.includes('DWD') ? 'bg-amber-100 text-amber-800' :
-                src.includes('KNMI') ? 'bg-green-100 text-green-800' :
-                src.includes('Visual') ? 'bg-purple-100 text-purple-800' :
-                'bg-blue-100 text-blue-800'}`}>
-            {src}
-          </span>
+          <span key={src} className={badgeClass(src)}>{src}</span>
         ))}
       </div>
     </div>
@@ -33,75 +32,95 @@ export default function ResultsTable({ stormDays, damageDate }) {
   const damageDateObj = damageDate ? new Date(damageDate) : null
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100">
-        <h3 className="text-base font-semibold text-blue-900">
+    <div className="glass-card" style={{ padding: 0 }}>
+      {/* Header */}
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <h3 style={{ color: 'white', fontSize: 14, fontWeight: 700, marginBottom: 2 }}>
           Nachgewiesene Sturmtage ({stormDays.length})
         </h3>
-        <p className="text-xs text-gray-500 mt-0.5">
-          Tage mit maximaler Windböe ≥ 62 km/h (Beaufort 8) — farbige Markierung zeigt Mehrfachbestätigung durch unabhängige Quellen
+        <p style={{ color: '#cbd5e1', fontSize: 12 }}>
+          Tage mit maximaler Windböe ≥ 62 km/h (Beaufort 8) — Farbe zeigt Mehrfachbestätigung durch unabhängige Quellen
         </p>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr className="bg-blue-900 text-white">
-              <th className="text-left px-4 py-3 font-semibold text-xs">Datum</th>
-              <th className="text-right px-4 py-3 font-semibold text-xs">Max. Böe (km/h)</th>
-              <th className="text-right px-4 py-3 font-semibold text-xs">Max. Böe (m/s)</th>
-              <th className="text-center px-4 py-3 font-semibold text-xs">Beaufort</th>
-              <th className="text-right px-4 py-3 font-semibold text-xs">Mittelwind</th>
-              <th className="text-left px-4 py-3 font-semibold text-xs">Bestätigende Quellen</th>
-              <th className="text-left px-4 py-3 font-semibold text-xs">Station</th>
+            <tr style={{ background: 'rgba(10,20,50,0.5)' }}>
+              {['Datum', 'Max. Böe (km/h)', 'Max. Böe (m/s)', 'Beaufort', 'Mittelwind', 'Bestätigende Quellen', 'Station'].map((h, i) => (
+                <th key={h} style={{
+                  color: '#cbd5e1',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: '0.5px',
+                  textTransform: 'uppercase',
+                  padding: '11px 16px',
+                  textAlign: i >= 1 && i <= 4 ? (i === 3 ? 'center' : 'right') : 'left',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {sorted.map((event, i) => {
               const eventDate = new Date(event.date)
-              const isDamageDay = damageDateObj &&
-                Math.abs(eventDate - damageDateObj) <= 86400000
+              const isDamageDay = damageDateObj && Math.abs(eventDate - damageDateObj) <= 86400000
               const n = event.confirming_sources?.length || 1
+
               const rowBg = isDamageDay
-                ? 'bg-blue-50'
-                : n >= 3
-                  ? 'bg-green-50'
-                  : n === 2
-                    ? 'bg-amber-50'
-                    : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                ? 'rgba(59,130,246,0.08)'
+                : n >= 3 ? 'rgba(34,197,94,0.05)'
+                : n === 2 ? 'rgba(245,158,11,0.05)'
+                : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'
 
               return (
-                <tr key={i} className={`border-b border-gray-100 hover:brightness-95 transition-all ${rowBg}`}>
-                  <td className="px-4 py-3 font-medium text-gray-800">
+                <tr key={i} style={{
+                  borderBottom: '1px solid rgba(255,255,255,0.05)',
+                  background: rowBg,
+                  cursor: 'default',
+                }}>
+                  <td style={{ padding: '11px 16px', color: 'white', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
                     {eventDate.toLocaleDateString('de-DE')}
                     {isDamageDay && (
-                      <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-semibold">
+                      <span style={{
+                        marginLeft: 6,
+                        background: 'rgba(59,130,246,0.2)',
+                        border: '1px solid rgba(59,130,246,0.35)',
+                        color: '#93c5fd',
+                        fontSize: 10, fontWeight: 700,
+                        padding: '1px 6px', borderRadius: 4,
+                      }}>
                         Schadensdatum
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-gray-800">
+                  <td style={{ padding: '11px 16px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: beaufortColor(event.beaufort), fontSize: 13 }}>
                     {event.max_gust_kmh.toFixed(1)}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-gray-600">
+                  <td style={{ padding: '11px 16px', textAlign: 'right', fontFamily: 'monospace', color: 'white', fontSize: 13 }}>
                     {event.max_gust_ms.toFixed(1)}
                   </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="inline-block px-2 py-1 rounded text-xs font-bold text-white"
-                      style={{ backgroundColor: beaufortColor(event.beaufort) }}>
+                  <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                    <span className="bft-badge" style={{
+                      background: `${beaufortColor(event.beaufort)}22`,
+                      border: `1px solid ${beaufortColor(event.beaufort)}44`,
+                      color: beaufortColor(event.beaufort),
+                    }}>
                       Bft {event.beaufort}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-gray-600">
+                  <td style={{ padding: '11px 16px', textAlign: 'right', fontFamily: 'monospace', color: 'white', fontSize: 13 }}>
                     {event.mean_wind_kmh ? `${event.mean_wind_kmh.toFixed(1)} km/h` : '—'}
                   </td>
-                  <td className="px-4 py-3">
+                  <td style={{ padding: '11px 16px' }}>
                     <SourceBadges event={event} />
                   </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">
+                  <td style={{ padding: '11px 16px', color: '#cbd5e1', fontSize: 12 }}>
                     {event.station_name || '—'}
                     {event.distance_km > 0 && (
-                      <span className="text-gray-400 ml-1">({event.distance_km} km)</span>
+                      <span style={{ color: '#94a3b8', marginLeft: 4 }}>({event.distance_km} km)</span>
                     )}
                   </td>
                 </tr>
@@ -112,22 +131,28 @@ export default function ResultsTable({ stormDays, damageDate }) {
       </div>
 
       {stormDays.length === 0 && (
-        <div className="px-6 py-8 text-center text-gray-400 text-sm">
+        <div style={{ padding: '32px 20px', textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>
           Keine Sturmtage ≥ Bft 8 im ausgewählten Zeitraum gefunden.
         </div>
       )}
 
-      {/* Legende */}
+      {/* Legend */}
       {stormDays.some(e => (e.confirming_sources?.length || 1) >= 2) && (
-        <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 flex flex-wrap gap-4 text-xs text-gray-600">
-          <span className="font-semibold">Farbcode Mehrfachbestätigung:</span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-amber-100 border border-amber-300 inline-block"></span>
+        <div style={{
+          padding: '12px 20px',
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          background: 'rgba(0,0,0,0.15)',
+          display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center',
+          fontSize: 12,
+        }}>
+          <span style={{ color: '#94a3b8', fontWeight: 600 }}>Farbcode:</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#cbd5e1' }}>
+            <span style={{ width: 11, height: 11, borderRadius: 2, background: 'rgba(245,158,11,0.35)', border: '1px solid rgba(245,158,11,0.4)', display: 'inline-block' }} />
             2 Quellen bestätigt
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-green-100 border border-green-300 inline-block"></span>
-            3+ Quellen bestätigt (höchste Sicherheit)
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#cbd5e1' }}>
+            <span style={{ width: 11, height: 11, borderRadius: 2, background: 'rgba(34,197,94,0.3)', border: '1px solid rgba(34,197,94,0.4)', display: 'inline-block' }} />
+            3+ Quellen (höchste Sicherheit)
           </span>
         </div>
       )}
