@@ -9,6 +9,7 @@ from pathlib import Path
 
 import re
 import base64
+from xml.sax.saxutils import escape as xml_escape
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -32,6 +33,11 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 LOGO_PATH = Path(__file__).parent.parent / "assets" / "logo.svg"
+
+
+def _escape_markup(value: object) -> str:
+    """Escapes dynamic text before it is inserted into ReportLab Paragraph markup."""
+    return xml_escape("" if value is None else str(value), {'"': "&quot;", "'": "&apos;"})
 
 
 def _logo_image(width_cm: float, max_height_cm: float = 3.0) -> Image | None:
@@ -213,6 +219,7 @@ class NumberedCanvas(rl_canvas.Canvas):
 def generate_pdf(
     result: QueryResponse,
     damage_date: date,
+    report_date: date | None = None,
     policy_number: str | None = None,
     insured_name: str | None = None,
     insured_address: str | None = None,
@@ -259,12 +266,12 @@ def generate_pdf(
         fontSize=7.5, fontName="Helvetica-Oblique",
         textColor=COLOR_MUTED, leading=11)
 
-    report_date = date.today()
+    report_date = report_date or date.today()
 
     # ── KOPFZEILE ────────────────────────────────────────────────────────────
     logo = _logo_image(width_cm=5.0, max_height_cm=3.1)
     left_cell = logo if logo is not None else Paragraph(
-        f"<b>{settings.company_name}</b>",
+        f"<b>{_escape_markup(settings.company_name)}</b>",
         ParagraphStyle("comp", fontSize=11, fontName="Helvetica-Bold",
                        textColor=COLOR_PRIMARY))
     header_data = [
@@ -325,9 +332,10 @@ def generate_pdf(
         best = max(damage_events, key=lambda e: e.max_gust_kmh)
         n_sources = len(best.confirming_sources)
         sources_str = " · ".join(best.confirming_sources) if best.confirming_sources else best.source
+        sources_markup = _escape_markup(sources_str)
         multi_src = (
-            f" <b>Mehrfachbestätigung durch {n_sources} unabhängige Quellen: {sources_str}.</b>"
-            if n_sources >= 2 else f" Quelle: {sources_str}."
+            f" <b>Mehrfachbestätigung durch {n_sources} unabhängige Quellen: {sources_markup}.</b>"
+            if n_sources >= 2 else f" Quelle: {sources_markup}."
         )
         status_text = (
             f"✔ Am {best.date.strftime('%d.%m.%Y')} wurde eine maximale Windböe von "
@@ -420,7 +428,7 @@ def generate_pdf(
                     "bft", fontSize=9, fontName="Helvetica-Bold",
                     textColor=colors.white if event.beaufort >= 9 else COLOR_TEXT)),
                 Paragraph(f"{event.mean_wind_kmh:.1f} km/h" if event.mean_wind_kmh else "—", normal),
-                Paragraph(src_text, ParagraphStyle(
+                Paragraph(_escape_markup(src_text), ParagraphStyle(
                     "srcs", fontSize=7.5, fontName="Helvetica-Bold" if n_src >= 2 else "Helvetica",
                     textColor=colors.HexColor(src_color), leading=10)),
             ]
@@ -479,8 +487,8 @@ def generate_pdf(
             ]]
             for art in articles:
                 art_data.append([
-                    Paragraph(art.get("title", "")[:120], normal),
-                    Paragraph(art.get("date", "")[:20], small),
+                    Paragraph(_escape_markup(art.get("title", "")[:120]), normal),
+                    Paragraph(_escape_markup(art.get("date", "")[:20]), small),
                 ])
             art_table = Table(art_data, colWidths=[13.0*cm, 3.5*cm])
             art_table.setStyle(TableStyle([
@@ -516,7 +524,7 @@ def generate_pdf(
                     shot_h = 10 * cm
                 story.append(Image(io.BytesIO(screenshot_bytes), width=shot_w, height=shot_h))
                 story.append(Paragraph(
-                    f"Quelle: {news_result.get('search_url', 'bbv-net.de')}",
+                    f"Quelle: {_escape_markup(news_result.get('search_url', 'bbv-net.de'))}",
                     disclaimer
                 ))
             except Exception as e:
@@ -567,7 +575,7 @@ def generate_pdf(
 
     story.append(Spacer(1, 0.4*cm))
     story.append(Paragraph(
-        f"Erstellt am {report_date.strftime('%d.%m.%Y')} | {settings.company_footer}",
+        f"Erstellt am {report_date.strftime('%d.%m.%Y')} | {_escape_markup(settings.company_footer)}",
         ParagraphStyle("foot", fontSize=7.5, fontName="Helvetica",
             textColor=COLOR_MUTED, alignment=TA_CENTER)
     ))

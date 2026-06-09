@@ -50,6 +50,7 @@ async def generate_pdf_report(request: PdfReportRequest):
         pdf_bytes = pdf_generator.generate_pdf(
             result=result,
             damage_date=request.damage_date,
+            report_date=report_date,
             policy_number=request.policy_number,
             insured_name=request.insured_name,
             insured_address=request.insured_address,
@@ -71,4 +72,5 @@ async def generate_pdf_report(request: PdfReportRequest):
     except ValueError as e:
         raise HTTPException(404, str(e))
     except Exception as e:
+        logger.exception("PDF-Generierung fehlgeschlagen")
         raise HTTPException(500, f"PDF-Generierung fehlgeschlagen: {e}")

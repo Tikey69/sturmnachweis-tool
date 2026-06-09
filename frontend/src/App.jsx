@@ -68,7 +68,17 @@ export default function App() {
           claim_number: lastQuery.claimNumber || undefined,
         }),
       })
-      if (!resp.ok) throw new Error('PDF-Generierung fehlgeschlagen')
+      if (!resp.ok) {
+        let detail = 'PDF-Generierung fehlgeschlagen'
+        try {
+          const err = await resp.json()
+          detail = err.detail || detail
+        } catch {
+          const text = await resp.text()
+          detail = text || detail
+        }
+        throw new Error(detail)
+      }
       const blob = await resp.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
