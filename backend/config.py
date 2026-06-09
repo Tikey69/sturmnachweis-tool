@@ -5,8 +5,6 @@ from pathlib import Path
 class Settings(BaseSettings):
     visual_crossing_api_key: str = ""
     knmi_api_key: str = ""
-    bbv_username: str = ""
-    bbv_password: str = ""
     cache_dir: str = "/app/data/cache"
     log_level: str = "info"
     company_name: str = "Versicherungsmakler"

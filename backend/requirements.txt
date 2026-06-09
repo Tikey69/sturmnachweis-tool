@@ -18,8 +18,3 @@ numpy==1.26.4
 aiofiles==23.2.1
 python-dateutil==2.9.0
 pytz==2024.1
-
-# News-Scraper (BBV-Net)
-playwright==1.45.0
-beautifulsoup4==4.12.3
-lxml==5.2.2

@@ -4,7 +4,6 @@ import SearchForm from './components/SearchForm'
 import LastStormCard from './components/LastStormCard'
 import StormChart from './components/StormChart'
 import ResultsTable from './components/ResultsTable'
-import NewsCard from './components/NewsCard'
 
 export default function App() {
   const [loading, setLoading] = useState(false)
@@ -208,8 +207,6 @@ export default function App() {
             )}
 
             <ResultsTable stormDays={result.storm_days} damageDate={lastQuery?.damageDate} />
-
-            <NewsCard plz={lastQuery?.plz} damageDate={lastQuery?.damageDate} />
 
             {/* Footer note */}
             <div style={{

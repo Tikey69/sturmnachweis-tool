@@ -224,7 +224,6 @@ def generate_pdf(
     insured_name: str | None = None,
     insured_address: str | None = None,
     claim_number: str | None = None,
-    news_result: dict | None = None,
 ) -> bytes:
     """
     Erstellt ein professionelles PDF-Dokument als Sturmnachweis.
@@ -467,70 +466,6 @@ def generate_pdf(
         ))
 
     story.append(Spacer(1, 0.7*cm))
-
-    # ── LOKALE PRESSEMELDUNGEN (nur wenn Artikel tatsächlich gefunden) ──────────
-    if news_result and news_result.get("found") and news_result.get("articles"):
-        story.append(HRFlowable(width="100%", thickness=1, color=COLOR_BORDER))
-        story.append(Spacer(1, 0.3*cm))
-        story.append(Paragraph("Lokale Pressemeldungen (BBV-Net)", h2))
-        story.append(Paragraph(
-            f"Automatisch recherchierte Berichte zum Schadensdatum bei Bocholter-Borkener Volksblatt (bbv-net.de).",
-            small
-        ))
-        story.append(Spacer(1, 0.3*cm))
-
-        articles = news_result.get("articles", [])
-        if articles:
-            art_data = [[
-                Paragraph("<b>Überschrift</b>", label),
-                Paragraph("<b>Datum</b>", label),
-            ]]
-            for art in articles:
-                art_data.append([
-                    Paragraph(_escape_markup(art.get("title", "")[:120]), normal),
-                    Paragraph(_escape_markup(art.get("date", "")[:20]), small),
-                ])
-            art_table = Table(art_data, colWidths=[13.0*cm, 3.5*cm])
-            art_table.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), COLOR_PRIMARY),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTSIZE", (0, 0), (-1, -1), 8.5),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, COLOR_LIGHT]),
-                ("GRID", (0, 0), (-1, -1), 0.5, COLOR_BORDER),
-                ("PADDING", (0, 0), (-1, -1), 5),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ]))
-            story.append(art_table)
-            story.append(Spacer(1, 0.3*cm))
-        else:
-            story.append(Paragraph(
-                "Keine sturmrelevanten Meldungen in der Nähe des Schadensdatums gefunden.",
-                small
-            ))
-
-        # Screenshot einbetten (nur wenn vorhanden und Artikel gefunden)
-        screenshot_bytes = news_result.get("screenshot") if articles else None
-        if screenshot_bytes:
-            story.append(Paragraph("Screenshot der BBV-Net Suchergebnisse:", small))
-            story.append(Spacer(1, 0.2*cm))
-            try:
-                from PIL import Image as PILImage
-                pil_shot = PILImage.open(io.BytesIO(screenshot_bytes))
-                aspect = pil_shot.height / pil_shot.width
-                shot_w = 16.5 * cm
-                shot_h = shot_w * aspect
-                # Höhe begrenzen
-                if shot_h > 10 * cm:
-                    shot_h = 10 * cm
-                story.append(Image(io.BytesIO(screenshot_bytes), width=shot_w, height=shot_h))
-                story.append(Paragraph(
-                    f"Quelle: {_escape_markup(news_result.get('search_url', 'bbv-net.de'))}",
-                    disclaimer
-                ))
-            except Exception as e:
-                logger.warning("BBV-Net Screenshot konnte nicht eingebettet werden: %s", e)
-
-        story.append(Spacer(1, 0.5*cm))
 
     # ── DATENQUELLEN ──────────────────────────────────────────────────────────
     story.append(HRFlowable(width="100%", thickness=1, color=COLOR_BORDER))

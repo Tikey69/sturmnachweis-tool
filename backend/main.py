@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from config import settings
-from routes import wind, report, news
+from routes import wind, report
 from models.schemas import HealthResponse
 
 logging.basicConfig(
@@ -28,7 +28,6 @@ app.add_middleware(
 
 app.include_router(wind.router)
 app.include_router(report.router)
-app.include_router(news.router)
 
 
 @app.get("/api/health", response_model=HealthResponse)

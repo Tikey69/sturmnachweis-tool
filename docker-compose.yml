@@ -8,8 +8,6 @@ services:
     environment:
       - VISUAL_CROSSING_API_KEY=${VISUAL_CROSSING_API_KEY:-}
       - KNMI_API_KEY=${KNMI_API_KEY:-}
-      - BBV_USERNAME=${BBV_USERNAME:-}
-      - BBV_PASSWORD=${BBV_PASSWORD:-}
       - CACHE_DIR=/app/data/cache
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
